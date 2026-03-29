@@ -1,6 +1,11 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy init — don't crash if key not set yet
+let _resend = null;
+function getResend() {
+  if (!_resend && process.env.RESEND_API_KEY) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 function generateMemberCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -20,7 +25,8 @@ function getExpiry(plan) {
 }
 
 async function sendWelcomeEmail(member) {
-  if (!process.env.RESEND_API_KEY) return console.log('No Resend key — skipping welcome email');
+  const resend = getResend();
+  if (!resend) return console.log('No Resend key — skipping welcome email');
 
   const planLabel = member.plan === 'seasonal' ? 'Seasonal Pass (3 months)' : 'Annual Pass (12 months)';
   const portalUrl = `${process.env.SITE_URL || 'https://saveinct.com'}/member/${member.code}`;
