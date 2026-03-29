@@ -45,13 +45,18 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST create merchant (admin) — with optional image
-router.post('/', requireAdmin, upload.single('image'), async (req, res) => {
+router.post('/', requireAdmin, (req, res, next) => {
+  // Only use multer if content-type is multipart
+  if (req.headers['content-type']?.includes('multipart/form-data')) {
+    upload.single('image')(req, res, next);
+  } else {
+    next();
+  }
+}, async (req, res) => {
   const { name, category, location, address, hours, website } = req.body;
   if (!name || !category) return res.status(400).json({ error: 'Name and category required' });
 
-  const image_url = req.file
-    ? `/uploads/${req.file.filename}`
-    : null;
+  const image_url = req.file ? `/uploads/${req.file.filename}` : null;
 
   const { rows } = await pool.query(
     `INSERT INTO merchants (name, category, location, address, hours, image_url, website)
@@ -62,7 +67,13 @@ router.post('/', requireAdmin, upload.single('image'), async (req, res) => {
 });
 
 // PATCH update merchant (admin)
-router.patch('/:id', requireAdmin, upload.single('image'), async (req, res) => {
+router.patch('/:id', requireAdmin, (req, res, next) => {
+  if (req.headers['content-type']?.includes('multipart/form-data')) {
+    upload.single('image')(req, res, next);
+  } else {
+    next();
+  }
+}, async (req, res) => {
   const { name, category, location, address, hours, website, active } = req.body;
   const image_url = req.file ? `/uploads/${req.file.filename}` : undefined;
 
@@ -78,7 +89,7 @@ router.patch('/:id', requireAdmin, upload.single('image'), async (req, res) => {
       active    = COALESCE($8, active)
      WHERE id = $9 RETURNING *`,
     [name, category, location, address, hours, image_url, website,
-     active !== undefined ? active === 'true' : undefined, req.params.id]
+     active !== undefined ? active === 'true' || active === true : undefined, req.params.id]
   );
   if (!rows.length) return res.status(404).json({ error: 'Not found' });
   res.json(rows[0]);
