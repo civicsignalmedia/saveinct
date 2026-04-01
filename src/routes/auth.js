@@ -36,7 +36,7 @@ router.post('/member', async (req, res) => {
     [code.trim()]
   );
 
-  if (!rows.length) return res.status(404).json({ error: 'Member code not found' });
+  if (!rows.length) return res.status(404).json({ error: 'Member code not found — check your welcome email' });
   const member = rows[0];
 
   if (member.status !== 'active') return res.status(403).json({ error: 'Membership is not active' });
@@ -48,7 +48,23 @@ router.post('/member', async (req, res) => {
     { expiresIn: '30d' }
   );
 
-  res.json({ token, member: { id: member.id, name: member.name, code: member.code, plan: member.plan, expires_at: member.expires_at } });
+  // Get redemption count
+  const { rows: redemptions } = await pool.query(
+    'SELECT COUNT(*) FROM redemptions WHERE member_id = $1', [member.id]
+  );
+
+  res.json({
+    token,
+    member: {
+      id: member.id,
+      name: member.name,
+      email: member.email,
+      code: member.code,
+      plan: member.plan,
+      expires_at: member.expires_at,
+      redemption_count: parseInt(redemptions[0].count)
+    }
+  });
 });
 
 module.exports = router;
