@@ -25,14 +25,7 @@ router.get('/', requireAdmin, async (req, res) => {
   res.json({ members: rows, total: parseInt(count[0].count), page: parseInt(page) });
 });
 
-// GET single member (admin or self)
-router.get('/:id', requireAdmin, async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM members WHERE id = $1', [req.params.id]);
-  if (!rows.length) return res.status(404).json({ error: 'Not found' });
-  res.json(rows[0]);
-});
-
-// GET member portal data (by code — member auth)
+// GET member portal data (by code — must be before /:id)
 router.get('/portal/:code', async (req, res) => {
   const { rows } = await pool.query(
     'SELECT id, name, email, code, plan, status, starts_at, expires_at FROM members WHERE UPPER(code) = UPPER($1)',
@@ -42,12 +35,18 @@ router.get('/portal/:code', async (req, res) => {
   const member = rows[0];
   if (member.status !== 'active') return res.status(403).json({ error: 'Membership inactive' });
 
-  // Get redemption count
   const { rows: redemptions } = await pool.query(
     'SELECT COUNT(*) FROM redemptions WHERE member_id = $1', [member.id]
   );
 
   res.json({ ...member, redemption_count: parseInt(redemptions[0].count) });
+});
+
+// GET single member (admin)
+router.get('/:id', requireAdmin, async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM members WHERE id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ error: 'Not found' });
+  res.json(rows[0]);
 });
 
 // POST create member manually (admin)
