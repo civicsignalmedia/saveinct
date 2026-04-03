@@ -26,13 +26,13 @@ router.post('/redeem', async (req, res) => {
   if (!deals.length) return res.status(404).json({ error: 'Deal not found or expired' });
   const deal = deals[0];
 
-  // Check if already redeemed today (prevent same-day double dip)
+  // Check if this specific deal already redeemed today (prevent double-dip on same deal)
   const { rows: recent } = await pool.query(
     `SELECT id FROM redemptions
      WHERE member_id = $1 AND deal_id = $2 AND redeemed_at > NOW() - INTERVAL '24 hours'`,
     [member.id, deal_id]
   );
-  if (recent.length) return res.status(409).json({ error: 'This deal was already redeemed in the last 24 hours' });
+  if (recent.length) return res.status(409).json({ error: 'You already redeemed this deal in the last 24 hours — come back tomorrow!' });
 
   // Log redemption
   await pool.query(
